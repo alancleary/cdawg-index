@@ -91,4 +91,85 @@ CFG* CFG::fromNavarroFiles(std::string filenameC, std::string filenameR) {
     return NULL;
 }
 
+// iterator
+
+CFG::ConstIterator::ConstIterator(const CFG* cfg, int idx) : parent(cfg), j(idx)
+{
+    r = parent->startRule;
+    i = 0;
+    next();
+}
+
+const CFG::ConstIterator::reference CFG::ConstIterator::operator*()
+{
+    return m_char;
+}
+
+const CFG::ConstIterator::pointer CFG::ConstIterator::operator->()
+{
+    return &m_char;
+}
+
+void CFG::ConstIterator::next()
+{
+    // iterate until the next character is decoded or the end of the text
+    while(j < parent->textLength) {
+        // end of rule
+        if (parent->rules[r][i] == MR_REPAIR_DUMMY_CODE) {
+            r = ruleStack.top();
+            ruleStack.pop();
+            i = indexStack.top();
+            indexStack.pop();
+        // terminal character
+        } else if (parent->rules[r][i] < MR_REPAIR_CHAR_SIZE) {
+            char c = (char) parent->rules[r][i];
+            m_char = c;
+            i++;
+            break;
+        // non-terminal character
+        } else {
+            ruleStack.push(r);
+            r = parent->rules[r][i];
+            indexStack.push(i + 1);
+            i = 0;
+        }
+    }
+}
+
+CFG::ConstIterator& CFG::ConstIterator::operator++()
+{
+    j++;
+    next();
+    return *this;
+}
+
+CFG::ConstIterator CFG::ConstIterator::operator++(int)
+{
+    ConstIterator tmp = *this;
+    ++(*this);
+    return tmp;
+}
+
+bool CFG::ConstIterator::operator== (const ConstIterator& itr)
+{
+    //return a.j == b.j;
+    return this->j == itr.j;
+}
+
+bool CFG::ConstIterator::operator!= (const ConstIterator& itr)
+{
+    //return a.j != b.j;
+    return this->j != itr.j;
+}
+
+CFG::ConstIterator CFG::cbegin() const
+{
+    return ConstIterator(this, 0);
+}
+
+CFG::ConstIterator CFG::cend() const
+{
+    return ConstIterator(this, textLength);
+}
+
 }
