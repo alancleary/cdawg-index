@@ -290,7 +290,6 @@ namespace cdawg_index {
         std::string line;
 
         // read grammar specs (- original text length as that is not supplied by navarro's)
-        cfg->textLength = std::stoi(line);
         std::getline(reader, line);
         cfg->numRules = std::stoi(line);
         std::getline(reader, line);
