@@ -1,4 +1,6 @@
+#include <chrono>
 #include <iostream>
+#include <random>
 #include "cdawg-index/cdawg.hpp"
 #include "cdawg-index/cfg.hpp"
 
@@ -62,6 +64,7 @@ int index(int argc, char* argv[]) {
       return 1;
     }
     CDAWG cdawg(cfg);
+    // TODO: implement saving CDAWG to file
     return 0;
 }
 
@@ -79,7 +82,63 @@ int search(int argc, char* argv[]) {
       return 1;
     }
     string pattern = argv[3];
-    // TODO: implement pattern matching
+    // TODO: implement loading CDAWG from file
+    return 0;
+}
+
+int benchmark(int argc, char* argv[]) {
+    // check the command-line arguments
+    if (argc < 4) {
+      cerr << "usage: same as \"index\" command" << endl;
+      usageIndex(argc, argv);
+      return 1;
+    }
+
+    // load the grammar
+    string type = argv[2];
+    string filename = argv[3];
+    cerr << "Loading grammar..." << endl;
+    CFG* cfg = loadGrammar(type, filename);
+    if (cfg == NULL) {
+      cerr << "usage: same as \"index\" command" << endl;
+      usageIndex(argc, argv);
+      return 1;
+    }
+
+    // build the CDAWG index
+    cerr << "Building CDAWG..." << endl;
+    CDAWG cdawg(cfg);
+
+    // benchmark
+    cerr << "Running benchmarks..." << endl;
+    chrono::steady_clock::time_point startTime, endTime;
+    uint64_t duration = 0;
+    int numQueries = 10, querySize = 1000;
+    char* query = new char[querySize];
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<uint32_t> distr(0, cfg->getTextLength() - querySize);
+    uint32_t begin, end;
+
+    for (int i = 0; i < numQueries; i++) {
+        begin = distr(gen);
+        end = begin + querySize - 1;
+
+        auto it = cfg->cbegin();
+        for (int j = 0; j < querySize; ++j, ++it) {
+            query[j] = *it;
+        }
+        string pattern(query, querySize);
+
+        startTime = chrono::steady_clock::now();
+        cdawg.search(pattern);
+        endTime = chrono::steady_clock::now();
+        duration += chrono::duration_cast<chrono::microseconds>(endTime - startTime).count();
+    }
+
+    cerr << "average query time: " << duration / numQueries << "[µs]" << endl;
+    delete query;
+
     return 0;
 }
 
@@ -98,6 +157,8 @@ int main(int argc, char* argv[])
         return index(argc, argv);
     } else if (command == "search") {
         return search(argc, argv);
+    } else if (command == "benchmark") {
+        return benchmark(argc, argv);
     } else {
         cerr << "invalid command: \"" << command << "\"" << endl;
         cerr << endl;
