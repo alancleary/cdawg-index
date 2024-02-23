@@ -1,4 +1,5 @@
 #include <iostream>
+#include "cdawg-index/cdawg.hpp"
 #include "cdawg-index/cfg.hpp"
 
 using namespace std;
@@ -60,6 +61,7 @@ int index(int argc, char* argv[]) {
       usageIndex(argc, argv);
       return 1;
     }
+    CDAWG cdawg(cfg);
     return 0;
 }
 
