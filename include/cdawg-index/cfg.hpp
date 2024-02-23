@@ -73,6 +73,7 @@ public:
     class ConstIterator;
 
     ConstIterator cbegin() const;
+    ConstIterator cbegin(int pos) const;
     ConstIterator cend() const;
 
 };
@@ -94,6 +95,7 @@ private:
     // TODO: stacks should be preallocated to size of max depth
     std::stack<int> ruleStack;
     std::stack<int> indexStack;
+    int skip;  // how many characters to skip before decoding
     int r;  // current rule being decoded
     int i;  // index in r of current (non-)terminal being decoded
     int j;  // currently decoded character in text
@@ -104,7 +106,7 @@ private:
 
 public:
 
-    ConstIterator(const CFG* cfg, int idx);
+    ConstIterator(const CFG* cfg, int pos);
 
     // dereference
     const reference operator*();

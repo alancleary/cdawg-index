@@ -143,10 +143,21 @@ char CFG::get(int q) const
 
 // iterator
 
-CFG::ConstIterator::ConstIterator(const CFG* cfg, int idx) : parent(cfg), j(idx)
+CFG::ConstIterator::ConstIterator(const CFG* cfg, int pos) : parent(cfg), j(pos)
 {
     r = parent->startRule;
-    i = 0;
+
+    // NOTE: map keys are reversed so this finds the largest key that's <= pos
+    auto itr = parent->startIndex.lower_bound(pos);
+    // return the end iterator if out of bounds
+    if (pos < 0 || pos >= parent->getTextLength() || itr == parent->startIndex.end()) {
+        j = parent->textLength;
+        return;
+    }
+
+    skip = pos - itr->first;
+    i = itr->second;
+
     next();
 }
 
@@ -172,10 +183,15 @@ void CFG::ConstIterator::next()
             indexStack.pop();
         // terminal character
         } else if (parent->rules[r][i] < MR_REPAIR_CHAR_SIZE) {
-            char c = (char) parent->rules[r][i];
-            m_char = c;
-            i++;
-            break;
+            if (skip > 0) {
+                skip--;
+                i++;
+            } else {
+                char c = (char) parent->rules[r][i];
+                m_char = c;
+                i++;
+                break;
+            }
         // non-terminal character
         } else {
             ruleStack.push(r);
@@ -202,19 +218,22 @@ CFG::ConstIterator CFG::ConstIterator::operator++(int)
 
 bool CFG::ConstIterator::operator== (const ConstIterator& itr)
 {
-    //return a.j == b.j;
     return this->j == itr.j;
 }
 
 bool CFG::ConstIterator::operator!= (const ConstIterator& itr)
 {
-    //return a.j != b.j;
     return this->j != itr.j;
 }
 
 CFG::ConstIterator CFG::cbegin() const
 {
     return ConstIterator(this, 0);
+}
+
+CFG::ConstIterator CFG::cbegin(int pos) const
+{
+    return ConstIterator(this, pos);
 }
 
 CFG::ConstIterator CFG::cend() const
