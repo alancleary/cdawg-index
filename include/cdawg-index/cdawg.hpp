@@ -47,6 +47,8 @@ public:
     CDAWG(const CFG* cfg);
     ~CDAWG();
 
+    bool search(const std::string& pattern);
+
     void printGraph();
 
 };

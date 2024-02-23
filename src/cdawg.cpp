@@ -203,6 +203,31 @@ CDAWG::NodeAndPos CDAWG::canonize(Node* s, int k, int p)
     return std::make_pair(s, k);
 }
 
+bool CDAWG::search(const std::string& pattern)
+{
+    std::string::size_type i = 0;
+    char c;
+    Node* m;
+    Node* n = source;
+    int k, p;
+    while (i < pattern.size() && n != sink) {
+        c = pattern[i];
+        if (!n->to.contains(c)) {
+            return false;
+        }
+        std::tie(k, p, m) = n->to[c];
+        for (auto it = cfg->cbegin(k), end = cfg->cend();
+             it != end && k <= p && i < pattern.size();
+             ++it, ++k, c = pattern[++i]) {
+            if (c != *it) {
+                return false;
+            }
+        }
+        n = m;
+    }
+    return i == pattern.size();
+}
+
 void CDAWG::printNodes(Node* n, std::set<std::string>& visited)
 {
     if (visited.contains(n->id)) {
