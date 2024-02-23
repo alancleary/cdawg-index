@@ -67,14 +67,14 @@ CFG* CFG::fromMrRepairFile(std::string filename)
     }
 
     // read start rule
-    uint32_t pos = 0;
-    uint8_t* key = new uint8_t[CFG::KEY_LENGTH];
+    int pos = 0;
     int len;
     for (i = 0; i < cfg->startSize; i++) {
         // get the (non-)terminal character
         std::getline(reader, line);
         c = std::stoi(line);
         cfg->rules[cfg->startRule][i] = c;
+        cfg->startIndex[pos] = i;
         pos += ruleSizes[c];
     }
     cfg->rules[cfg->startRule][i] = CFG::MR_REPAIR_DUMMY_CODE;
@@ -89,6 +89,56 @@ CFG* CFG::fromMrRepairFile(std::string filename)
 
 CFG* CFG::fromNavarroFiles(std::string filenameC, std::string filenameR) {
     return NULL;
+}
+
+// access single character
+
+/**
+* A naive implementation of random access.
+*
+* The text positions of the (non-)terminal characters in the start rule are
+* indexed when the grammar is loaded. Then any position is accessed by getting
+* the closest indexed position and decoding the grammar up to the query position,
+* ignoring the decoded characters prior to the query position.
+*/
+char CFG::get(int q) const
+{
+
+    // NOTE: map keys are reversed so this finds the largest key that's <= i
+    auto itr = startIndex.lower_bound(q);
+    if (q < 0 || q >= textLength || itr == startIndex.end()) {
+        throw std::runtime_error("q out of bounds");
+    }
+    int pos = itr->first;
+    int length = q - pos + 1;
+
+    // TODO: stacks should be preallocated to size of max depth
+    int r = startRule;
+    int i = itr->second;
+    char c;
+    std::stack<int> ruleStack;
+    std::stack<int> indexStack;
+    for (int j = 0; j < length;) {
+        // end of rule
+        if (rules[r][i] == MR_REPAIR_DUMMY_CODE) {
+            r = ruleStack.top();
+            ruleStack.pop();
+            i = indexStack.top();
+            indexStack.pop();
+        // terminal character
+        } else if (rules[r][i] < MR_REPAIR_CHAR_SIZE) {
+            c = (char) rules[r][i];
+            i++;
+            j++;
+        // non-terminal character
+        } else {
+            ruleStack.push(r);
+            r = rules[r][i];
+            indexStack.push(i + 1);
+            i = 0;
+        }
+    }
+    return c;
 }
 
 // iterator

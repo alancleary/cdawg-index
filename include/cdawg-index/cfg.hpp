@@ -1,7 +1,9 @@
 #ifndef INCLUDED_CDAWG_INDEX_CFG
 #define INCLUDED_CDAWG_INDEX_CFG
 
+#include <functional>  // std::greater
 #include <iterator>  // std::forward_iterator_tag
+#include <map>
 #include <stack>
 #include <string>
 
@@ -18,6 +20,9 @@ private:
 
     static const int MR_REPAIR_CHAR_SIZE = 256;
     static const int MR_REPAIR_DUMMY_CODE = -1;  // UINT_MAX in MR-RePair C code
+
+    // NOTE: key order is reversed for finding nearest key that is <=
+    std::map<int, int, std::greater<int>> startIndex;
 
     int textLength;
     int numRules;
@@ -50,11 +55,20 @@ public:
      */
     static CFG* fromNavarroFiles(std::string filenameC, std::string filenameR);
 
-    int getTextLength() { return textLength; }
-    int getNumRules() { return numRules; }
-    int getStartSize() { return startSize; }
-    int getRulesSize() { return rulesSize; }
-    int getTotalSize() { return startSize + rulesSize; }
+    int getTextLength() const { return textLength; }
+    int getNumRules() const { return numRules; }
+    int getStartSize() const { return startSize; }
+    int getRulesSize() const { return rulesSize; }
+    int getTotalSize() const { return startSize + rulesSize; }
+
+    /**
+     * Gets the character in the given position in the text.
+     *
+     * @param q The position in the text.
+     * @return The charcter.
+     * @throws Exception if q is out of range.
+     */
+    char get(int q) const;
 
     class ConstIterator;
 
