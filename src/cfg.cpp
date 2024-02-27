@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <cstdio>  // FILE
 #include <fstream>
+#include <sys/stat.h>
 #include "cdawg-index/cfg.hpp"
 
 namespace cdawg_index {
@@ -10,7 +12,8 @@ CFG::CFG() { }
 
 // destruction
 
-CFG::~CFG() {
+CFG::~CFG()
+{
     for (int i = 0; i < rulesSize; i++) {
         delete[] rules[i];
     }
@@ -87,8 +90,95 @@ CFG* CFG::fromMrRepairFile(std::string filename)
 
 // construction from Navarro grammar
 
-CFG* CFG::fromNavarroFiles(std::string filenameC, std::string filenameR) {
-    return NULL;
+CFG* CFG::fromNavarroFiles(std::string filenameC, std::string filenameR)
+{
+    typedef struct { int left, right; } Tpair;
+
+    CFG* cfg = new CFG();
+
+    // get the .R file size
+    struct stat s;
+    stat(filenameR.c_str(), &s);
+    int len = s.st_size;
+
+    // open the .R file
+    FILE* rFile = fopen(filenameR.c_str(), "r");
+
+    // read the alphabet size
+    int alphabetSize;
+    fread(&alphabetSize, sizeof(int), 1, rFile);
+    cfg->numRules = (len - sizeof(int) - alphabetSize) / sizeof(Tpair);
+    cfg->rulesSize = cfg->numRules * 2;  // each rule is a pair
+    cfg->startRule = cfg->numRules + CFG::MR_REPAIR_CHAR_SIZE;
+
+    // read the alphabet
+    char map[256];
+    fread(&map, sizeof(char), alphabetSize, rFile);
+
+    // prepare to read grammar
+    int rulesSize = cfg->startRule + 1;  // +1 for start rule
+    cfg->rules = new int*[rulesSize];
+    int* ruleSizes = new int[rulesSize - 1];
+    for (int i = 0; i < CFG::MR_REPAIR_CHAR_SIZE; i++) {
+        ruleSizes[i] = 1;
+    }
+
+    // read the rule pairs
+    Tpair p;
+    int i, c;
+    char tmp;
+    for (int i = CFG::MR_REPAIR_CHAR_SIZE; i < cfg->startRule; i++) {
+        fread(&p, sizeof(Tpair), 1, rFile);
+        cfg->rules[i] = new int[3];  // +1 for the dummy code
+        if (p.left < alphabetSize) {
+            c = (unsigned char) map[p.left];
+        } else {
+            c = p.left - alphabetSize + CFG::MR_REPAIR_CHAR_SIZE;
+        }
+        cfg->rules[i][0] = c;
+        ruleSizes[i] += ruleSizes[c];
+        if (p.right < alphabetSize) {
+            c = (unsigned char) map[p.right];
+        } else {
+            c = p.right - alphabetSize + CFG::MR_REPAIR_CHAR_SIZE;
+        }
+        cfg->rules[i][1] = c;
+        ruleSizes[i] += ruleSizes[c];
+        cfg->rules[i][2] = CFG::MR_REPAIR_DUMMY_CODE;
+    }
+
+    // close the .R file
+    fclose(rFile);
+
+    // get the .C file size
+    stat(filenameC.c_str(), &s);
+    cfg->startSize = s.st_size / sizeof(int);
+    cfg->rules[cfg->startRule] = new int[cfg->startSize + 1];  // +1 for the dummy code
+
+    // open the .C file
+    FILE* cFile = fopen(filenameC.c_str(), "r");
+
+    // read the start rule
+    int pos = 0;
+    int t;
+    for (i = 0; i < cfg->startSize; i++) {
+        fread(&t, sizeof(int), 1, cFile);
+        if (t < alphabetSize) {
+            c = (unsigned char) map[t];
+        } else {
+            c = t - alphabetSize + CFG::MR_REPAIR_CHAR_SIZE;
+        }
+        cfg->rules[cfg->startRule][i] = c;
+        cfg->startIndex[pos] = i;
+        pos += ruleSizes[c];
+    }
+    cfg->textLength = pos;
+    cfg->rules[cfg->startRule][i] = CFG::MR_REPAIR_DUMMY_CODE;
+
+    // clean up
+    delete[] ruleSizes;
+
+    return cfg;
 }
 
 // access single character
